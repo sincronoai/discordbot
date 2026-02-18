@@ -3,10 +3,6 @@ import {
   GatewayIntentBits,
   Events,
   Partials,
-  Message,
-  GuildMember,
-  MessageReaction,
-  User,
 } from 'discord.js';
 import dotenv from 'dotenv';
 
@@ -32,9 +28,6 @@ const client = new Client({
 const N8N_URL = process.env.N8N_ROUTER_URL || '';
 const GUILD_ID = process.env.GUILD_ID || '';
 
-// ─────────────────────────────────────────────
-// Función central: enviar a n8n
-// ─────────────────────────────────────────────
 async function sendToN8n(eventType: string, data: Record<string, any>) {
   if (!N8N_URL) {
     console.error('❌ N8N_ROUTER_URL no configurada');
@@ -54,7 +47,6 @@ async function sendToN8n(eventType: string, data: Record<string, any>) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-
     if (res.ok) {
       console.log(`✅ OK: ${eventType}`);
     } else {
@@ -65,9 +57,6 @@ async function sendToN8n(eventType: string, data: Record<string, any>) {
   }
 }
 
-// ─────────────────────────────────────────────
-// Bot listo
-// ─────────────────────────────────────────────
 client.once(Events.ClientReady, (c) => {
   console.log(`\n✅ Bot online: ${c.user.tag}`);
   console.log(`🏠 Servidor: ${GUILD_ID || 'TODOS'}`);
@@ -75,10 +64,8 @@ client.once(Events.ClientReady, (c) => {
   console.log('👂 Escuchando todos los eventos...\n');
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 1: Mensaje en cualquier canal
-// ─────────────────────────────────────────────
-client.on(Events.MessageCreate, async (message: Message) => {
+// Mensaje en cualquier canal
+client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return;
   if (GUILD_ID && message.guildId !== GUILD_ID) return;
 
@@ -98,9 +85,7 @@ client.on(Events.MessageCreate, async (message: Message) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 2: Mensaje editado
-// ─────────────────────────────────────────────
+// Mensaje editado
 client.on(Events.MessageUpdate, async (oldMsg, newMsg) => {
   if (newMsg.author?.bot) return;
   if (GUILD_ID && newMsg.guildId !== GUILD_ID) return;
@@ -120,15 +105,13 @@ client.on(Events.MessageUpdate, async (oldMsg, newMsg) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 3: Mensaje eliminado
-// ─────────────────────────────────────────────
+// Mensaje eliminado
 client.on(Events.MessageDelete, async (message) => {
   if (GUILD_ID && message.guildId !== GUILD_ID) return;
 
   await sendToN8n('messageDelete', {
     id: message.id,
-    content: message.content ?? '[mensaje no cacheado]',
+    content: message.content ?? '[no cacheado]',
     channel_id: message.channelId,
     guild_id: message.guildId,
     author: {
@@ -139,10 +122,8 @@ client.on(Events.MessageDelete, async (message) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 4: Nuevo miembro
-// ─────────────────────────────────────────────
-client.on(Events.GuildMemberAdd, async (member: GuildMember) => {
+// Nuevo miembro
+client.on(Events.GuildMemberAdd, async (member) => {
   if (GUILD_ID && member.guild.id !== GUILD_ID) return;
 
   await sendToN8n('memberAdd', {
@@ -155,9 +136,7 @@ client.on(Events.GuildMemberAdd, async (member: GuildMember) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 5: Miembro sale
-// ─────────────────────────────────────────────
+// Miembro sale
 client.on(Events.GuildMemberRemove, async (member) => {
   if (GUILD_ID && member.guild.id !== GUILD_ID) return;
 
@@ -171,10 +150,8 @@ client.on(Events.GuildMemberRemove, async (member) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 6: Reacción añadida
-// ─────────────────────────────────────────────
-client.on(Events.MessageReactionAdd, async (reaction: MessageReaction, user: User) => {
+// Reacción añadida (tipos sueltos para compatibilidad con Partials)
+client.on(Events.MessageReactionAdd, async (reaction, user) => {
   if (user.bot) return;
   if (GUILD_ID && reaction.message.guildId !== GUILD_ID) return;
 
@@ -184,14 +161,12 @@ client.on(Events.MessageReactionAdd, async (reaction: MessageReaction, user: Use
     guild_id: reaction.message.guildId,
     emoji: reaction.emoji.name,
     user_id: user.id,
-    username: user.username,
+    username: (user as any).username,
     timestamp: Date.now(),
   });
 });
 
-// ─────────────────────────────────────────────
-// EVENTO 7: Miembro actualiza roles/apodo
-// ─────────────────────────────────────────────
+// Cambio de roles/apodo
 client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   if (GUILD_ID && newMember.guild.id !== GUILD_ID) return;
 
@@ -215,9 +190,6 @@ client.on(Events.GuildMemberUpdate, async (oldMember, newMember) => {
   });
 });
 
-// ─────────────────────────────────────────────
-// Errores
-// ─────────────────────────────────────────────
 client.on(Events.Error, (err) => {
   console.error('❌ Discord Error:', err);
 });
@@ -226,11 +198,7 @@ process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled rejection:', err);
 });
 
-// ─────────────────────────────────────────────
-// Login
-// ─────────────────────────────────────────────
 const token = process.env.DISCORD_BOT_TOKEN;
-
 if (!token) {
   console.error('❌ DISCORD_BOT_TOKEN no configurada');
   process.exit(1);
